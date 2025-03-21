@@ -4,6 +4,9 @@ const router = express.Router()
 const Post = require('../models/Post')
 const verifyToken = require('../verifyToken')
 
+const {postValidation,updateValidation} = require('../validations/validation')
+
+
 router.get('/', async(req,res) =>{
     try{
         const posts = await Post.find()
@@ -23,7 +26,12 @@ router.get('/:id', async(req,res) =>{
 })
 
 router.post('/', verifyToken, async(req, res) => {
-    console.log(req)
+    
+    const {error} = postValidation(req.body)
+    if(error){
+        return res.status(400).send({message:error['details'][0]['message']})
+    }
+
     // Code to insert data
     const post = new Post({
         title:req.body.title,
@@ -43,6 +51,11 @@ router.post('/', verifyToken, async(req, res) => {
 router.delete('/:id', verifyToken, async(req, res) => {
     try{
         const post = await Post.findById(req.params.id)
+
+        if(!post){
+            res.status(400).send({message:"Post did not exist"})
+        }
+
         await Post.deleteOne(post)
         res.send({deletedPost:post})
     }catch(err){
@@ -51,9 +64,23 @@ router.delete('/:id', verifyToken, async(req, res) => {
 })
 
 router.put('/:id', verifyToken, async(req, res) => {
+
+    const {error} = updateValidation(req.body)
+    if(error){
+        return res.status(400).send({message:error['details'][0]['message']})
+    }
+
     try{
-        const post = await Post.findById(req.params.id)
+        let post = await Post.findById(req.params.id)
+
+        if(!post){
+            res.status(400).send({message:"Post did not exist"})
+        }
+
         await Post.updateOne(post, req.body)
+        //Need to get the new Post with the updated information
+        post = await Post.findById(req.params.id)
+        
         res.send({updatedPost:post})
     }catch(err){
         res.status(400).send({message:err})
